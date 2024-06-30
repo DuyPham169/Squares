@@ -648,6 +648,8 @@ MonoBehaviour:
   moveSpeed: 10
   jumpForce: 18
   doubleJumpForce: 14
+  bufferJumpWindow: 0.15
+  coyoteJumpWindow: 0.2
   wallJumpDuration: 0.2
   wallJumpForce: {x: 8, y: 18}
   groundCheckDistance: 1.1

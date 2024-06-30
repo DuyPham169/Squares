@@ -12,10 +12,21 @@ public class Player : MonoBehaviour
     [SerializeField] private float doubleJumpForce;
     private bool canDoubleJump;
 
+    [Header("Buffer & Coyote Jump")]
+    [SerializeField] private float bufferJumpWindow = .5f;
+    private float bufferJumpActivated = -1;
+    [SerializeField] private float coyoteJumpWindow = .5f;
+    private float coyoteJumpActivated = -1;
+
     [Header("Wall Interactions")]
     [SerializeField] private float wallJumpDuration = .2f;
     [SerializeField] private Vector2 wallJumpForce;
     private bool isWallJumping;
+
+    [Header("Knockback")]
+    [SerializeField] private float knockbackDuration = 1;
+    [SerializeField] private Vector2 knockbackPower;
+    private bool isKnocked;
 
     [Header("Collision info")]
     [SerializeField] private float groundCheckDistance;
@@ -42,11 +53,31 @@ public class Player : MonoBehaviour
     {
         UpdateAirborneStatus();
 
+        if (isKnocked)
+            return;
+
         HandleInput();
         HandleWallSlide();
         HandleMovement();
         HandleFlip();
         HandleCollision();
+    }
+
+    public void Knockback()
+    {
+        if (isKnocked)
+            return;
+
+        StartCoroutine(KnockbackRoutine());
+        //anim.SetTrigger("knockback");
+        rb.velocity = new Vector2(knockbackPower.x * -facingDir, knockbackPower.y);
+    }
+
+    private IEnumerator KnockbackRoutine()
+    {
+        isKnocked = true;
+        yield return new WaitForSeconds(knockbackDuration);
+        isKnocked = false;
     }
 
     private void UpdateAirborneStatus()
@@ -64,12 +95,19 @@ public class Player : MonoBehaviour
     private void BecomeAirborne()
     {
         isAirborne = true;
+
+        if (rb.velocity.y <= 0)
+        {
+            ActivateCoyoteJump();
+        }
     }
 
     private void HandleLanding()
     {
         isAirborne = false;
         canDoubleJump = true;
+
+        AttemptBufferJump();
     }
 
     private void HandleWallSlide()
@@ -89,11 +127,39 @@ public class Player : MonoBehaviour
         yInput = Input.GetAxisRaw("Vertical");
 
         if (Input.GetKeyDown(KeyCode.X))
+        {
             JumpButton();
+            RequestBufferJump();
+        }
     }
+
+    #region Buffer & Coyote Jump
+
+    private void RequestBufferJump()
+    {
+        if (isAirborne)
+            bufferJumpActivated = Time.time;
+    }
+
+    private void AttemptBufferJump()
+    {
+        if (Time.time < bufferJumpActivated + bufferJumpWindow)
+        {
+            bufferJumpActivated = 0; // resetting
+            Jump();
+        }
+    }
+
+    private void ActivateCoyoteJump() => coyoteJumpActivated = Time.time;
+
+    private void CancelCoyoteJump() => coyoteJumpActivated = 0;
+
+    #endregion
+
     private void JumpButton()
     {
-        if (isGrounded)
+        bool coyoteJumpAvailable = Time.time < coyoteJumpActivated + coyoteJumpWindow;
+        if (isGrounded || coyoteJumpAvailable)
         {
             Jump();
         }
@@ -105,6 +171,8 @@ public class Player : MonoBehaviour
         {
             DoubleJump();
         }
+
+        CancelCoyoteJump();
     }
 
     private void Jump() => rb.velocity = new Vector2(rb.velocity.x, jumpForce);
